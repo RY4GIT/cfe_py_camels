@@ -1,29 +1,36 @@
-
+# %%
 import time
 import numpy as np
 import pandas as pd
 import json
 import matplotlib.pyplot as plt
 import bmi_cfe
+import os
+from fao_pet import FAO_PET
 
-cfe_instance = bmi_cfe.BMI_CFE('./cat58_config_cfe.json')
+# %%
+data_dir = "G:\Shared drives\SI_NextGen_Aridity\dCFE\data"
+basin_id = "01137500"
+partitioning_scheme = "Schaake"
 
 
-cfe_instance.initialize()
+# %%
+output_dir = os.path.join(data_dir, "synthetic_case_from_original_code", partitioning_scheme)
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
 
+# %%
+filename = f"{basin_id}_hourly_nldas.csv"
+forcing_df = pd.read_csv(os.path.join(data_dir, filename))
+forcing_df.set_index(pd.to_datetime(forcing_df["date"]), inplace=True)
+forcing_df.head()
 
-with open(cfe_instance.forcing_file, 'r') as f:
-    df_forcing = pd.read_csv(f)
-    
-outputs = cfe_instance.get_output_var_names()
-output_lists = {output:[] for output in outputs}
+# # Convert pandas dataframe to PyTorch tensors
+# Convert units
+# (precip/1000)   # kg/m2/h = mm/h -> m/h
+# (pet/1000/3600) # kg/m2/h = mm/h -> m/s
+conversions_m_to_mm = 1000
+precip =  forcing_df["total_precipitation"].values / conversions_m_to_mm
 
-for precip in df_forcing['APCP_surface']:
-    
-    cfe_instance.set_value('atmosphere_water__time_integral_of_precipitation_mass_flux', precip)
-    
-    cfe_instance.update()
-    
-    for output in outputs:
-    
-        output_lists[output].append(cfe_instance.get_value(output))
+pet = FAO_PET(nldas_forcing=forcing_df, basin_id=basin_id).calc_PET()
+# %%

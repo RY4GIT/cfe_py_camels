@@ -9,7 +9,7 @@ from bmipy import Bmi
 
 
 class BMI_CFE(Bmi):
-    def __init__(self, cfg_file=None, verbose=False):
+    def __init__(self, cfg_file=None, soil_scheme=None, partitioning_scheme=None, verbose=False):
         # ________________________________________________
         # Create a Bmi CFE model that is ready for initialization
 
@@ -24,6 +24,10 @@ class BMI_CFE(Bmi):
         self.streamflow_cmh = 0.0
         # self.streamflow_fms = 0.0
         self.surface_runoff_m = 0.0
+
+        #_________________________
+        self.surface_partitioning_scheme = partitioning_scheme
+        self.soil_scheme = soil_scheme
 
         # ________________________________________________
         # Required, static attributes of the model
@@ -400,23 +404,24 @@ class BMI_CFE(Bmi):
         self.giuh_ordinates = np.array(data_loaded["giuh_ordinates"])
 
         # Partitioning parameters
-        self.surface_partitioning_scheme = data_loaded["partition_scheme"]
+        # self.surface_partitioning_scheme = data_loaded["partition_scheme"]
 
         # ___________________________________________________
         # OPTIONAL CONFIGURATIONS
-        if "stand_alone" in data_loaded.keys():
-            self.stand_alone = data_loaded["stand_alone"]
-        if "forcing_file" in data_loaded.keys():
-            self.reads_own_forcing = True
-            self.forcing_file = data_loaded["forcing_file"]
+        self.stand_alone = 0
+        # if "stand_alone" in data_loaded.keys():
+        #     self.stand_alone = data_loaded["stand_alone"]
+        # if "forcing_file" in data_loaded.keys():
+        #     self.reads_own_forcing = True
+        #     self.forcing_file = data_loaded["forcing_file"]
         if "unit_test" in data_loaded.keys():
             self.unit_test = data_loaded["unit_test"]
             self.compare_results_file = data_loaded["compare_results_file"]
         # Soil representation selection
-        if "soil_scheme" in data_loaded.keys():
-            self.soil_scheme = data_loaded["soil_scheme"]
-        else:
-            self.soil_scheme = "classic"
+        # if "soil_scheme" in data_loaded.keys():
+        #     self.soil_scheme = data_loaded["soil_scheme"]
+        # else:
+        #     self.soil_scheme = "classic"
 
         return
 
