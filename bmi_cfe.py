@@ -92,7 +92,7 @@ class BMI_CFE(Bmi):
     # __________________________________________________________________
     # __________________________________________________________________
     # BMI: Model Control Function
-    def initialize(self, current_time_step=0):
+    def initialize(self, current_time_step=0, refkdt=None, satdk=None):
         self.current_time_step = current_time_step
 
         # ________________________________________________
@@ -122,6 +122,11 @@ class BMI_CFE(Bmi):
         # ________________________________________________________ #
         # GET VALUES FROM CONFIGURATION FILE.                      #
         self.config_from_json()  #
+
+        # ________________________________________________________ #
+        # Overwrite with synthetic params                      #
+        self.refkdt = refkdt
+        self.soil_params["satdk"] = satdk
 
         # ________________________________________________
         # The configuration should let the BMI know what mode to run in (framework vs standalone)
@@ -280,7 +285,6 @@ class BMI_CFE(Bmi):
 
         # ________________________________________________
         # Schaake partitioning
-        self.refkdt = 3.0
         self.Schaake_adjusted_magic_constant_by_soil_type = (
             self.refkdt * self.soil_params["satdk"] / 2.0e-06
         )
