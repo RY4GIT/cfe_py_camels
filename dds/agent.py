@@ -93,7 +93,7 @@ class Spotpy_Agent:
 
     def finalize(self):
         self.get_the_best_run(self.results)
-        self.remove_temp_files()
+        # self.remove_temp_files()
 
     def get_the_best_run(self, results):
         # Save parameter bounds used for calibration
@@ -125,7 +125,7 @@ class Spotpy_Agent:
 
     def remove_temp_files(self):
         directory = os.path.join(
-            os.path.dirname(self.config["PATHS"]["homedir"]),
+            os.path.dirname(self.config["PATHS"]["homedir"]), "dds",
             "temporary_parameter_files_for_calibration",
         )
         shutil.rmtree(directory)
