@@ -7,23 +7,29 @@ import warnings
 
 import sys
 
-sys.path.append(os.path.join(os.getcwd(), "libs", "cfe_py"))
+parent_dir = r"G:\Shared drives\Ryoko and Hilary\cfe_py_camels"
+sys.path.append(os.path.join(parent_dir,"cfe_py"))
 from bmi_cfe import BMI_CFE
+from fao_pet import FAO_PET
 
 import shutil
 import random
+import numpy as np
 
 
-def duplicate_file(source_path):
-    i = random.randint(1, 9999)
+def duplicate_file(cfg):
+
+    filename = f"cat_{cfg['DATA']['basin_id']}_bmi_config_cfe.json"
     # Determine the directory and make a path for the new file
-    directory = os.path.join(
-        os.path.dirname(source_path),
-        "temporary_parameter_files_for_calibration",
+    source_path = os.path.join(
+        cfg["PATHS"]["cfe_config"],
+        filename,
     )
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    destination_path = os.path.join(directory, f"cfe_config_{i}.json")
+
+    temp_path = os.path.join(cfg["PATHS"]["homedir"],"temp")
+    if not os.path.exists(temp_path):
+        os.mkdir(temp_path)
+    destination_path = os.path.join(temp_path, filename)
 
     # Copy the source file to the new location
     shutil.copy2(source_path, destination_path)
@@ -35,71 +41,78 @@ class CFEmodel:
     def __init__(self, config=None, vector=None):
         # Configs
         self.config = config
+        self.basin_id = config["DATA"]["basin_id"]
         self.like_measure = config["spotpy"]["like_measure"]
         self.eval_variable = config["spotpy"]["eval_variable"]
         self.warmup_offset = int(config["spotpy"]["warmup_offset"])
-        self.warmup_iteration = int(config["spotpy"]["warmup_iteration"])
+        self.data_dir = config["PATHS"]["DATA"]
+
+        self.start_time = config["DATA"]["start_time"]
+        self.end_time = config["DATA"]["end_time"]
 
         # Copy the CFE config file for sensitivty analysis
-        destination_path = duplicate_file(
-            source_path=self.config["PATHS"]["cfe_config"]
-        )
-
-        self.cfe_instance = BMI_CFE(cfg_file=destination_path)
+        destination_path = duplicate_file(cfg=config)
 
         # write the randomly-generated parameters to the config json file
-        with open(self.cfe_instance.cfg_file) as data_file:
+        with open(destination_path) as data_file:
             cfe_cfg = json.load(data_file)
 
         cfe_cfg["soil_params"]["bb"] = vector["bb"]
         cfe_cfg["soil_params"]["satdk"] = vector["satdk"]
+        self.satdk = vector["satdk"]
         cfe_cfg["soil_params"]["slop"] = vector["slop"]
         cfe_cfg["soil_params"]["smcmax"] = vector["smcmax"]
-        cfe_cfg["soil_params"]["wltsmc"] = vector["wltsmc"]
         cfe_cfg["max_gw_storage"] = vector["max_gw_storage"]
-        cfe_cfg["soil_params"]["satpsi"] = vector["satpsi"]
         cfe_cfg["Cgw"] = vector["Cgw"]
+        self.Cgw = vector["Cgw"]
         cfe_cfg["expon"] = vector["expon"]
         cfe_cfg["K_nash"] = vector["K_nash"]
-        cfe_cfg["refkdt"] = vector["refkdt"]
-        cfe_cfg["trigger_z_fact"] = vector["trigger_z_fact"]
-        cfe_cfg["alpha_fc"] = vector["alpha_fc"]
         cfe_cfg["K_lf"] = vector["K_lf"]
-        cfe_cfg["num_nash_storage"] = int(vector["num_nash_storage"])
+        cfe_cfg["partition_scheme"] = "Schaake"
+        cfe_cfg["soil_scheme"] = "classic"
 
-        with open(self.cfe_instance.cfg_file, "w") as out_file:
+        with open(destination_path, "w") as out_file:
             json.dump(cfe_cfg, out_file, indent=4)
 
         # Here the model is actualy started with a unique parameter combination that it gets from spotpy for each time the model is called
-        self.cfe_instance.initialize()
+        self.cfe_instance = BMI_CFE(cfg_file=destination_path, partitioning_scheme=cfe_cfg["partition_scheme"], soil_scheme=cfe_cfg["soil_scheme"])
+        self.cfe_instance.initialize(Cgw=self.Cgw, satdk=self.satdk)
 
-    def return_obs_data(self):
-        self.cfe_instance.load_unit_test_data()
-        obs = self.cfe_instance.unit_test_data[self.eval_variable]
-        return obs
+        self.read_data()
+
+    def read_data(self):
+        filename = f"{self.basin_id}_hourly_nldas.csv"
+        _forcing_df = pd.read_csv(os.path.join(self.data_dir, "nldas_hourly", filename))
+        _forcing_df.set_index(pd.to_datetime(_forcing_df["date"]), inplace=True)
+        forcing_df = _forcing_df[self.start_time:self.end_time].copy()
+        forcing_df.head()
+        conversions_m_to_mm = 1000
+        self.precip =  forcing_df["total_precipitation"].values / conversions_m_to_mm
+        self.pet = FAO_PET(nldas_forcing=forcing_df, basin_id=self.basin_id).calc_PET().values
+
+        filename = f"{self.basin_id}-usgs-hourly.csv"
+        obs_q_ = pd.read_csv(os.path.join(self.data_dir, "usgs_streamflow", filename))
+        obs_q_.set_index(pd.to_datetime(obs_q_["date"]), inplace=True)
+        # obs_q_ = obs_q_["QObs(mm/h)"].values / conversions_m_to_mm
+        q = obs_q_[self.start_time:self.end_time].copy()
+        self.obs_q = q["QObs(mm/h)"] / conversions_m_to_mm
 
     def run(self):
-        self.cfe_instance.run_unit_test(
-            plot=False,
-            print_fluxes=False,
-            warm_up=True,
-            warmup_offset=self.warmup_offset,
-            warmup_iteration=self.warmup_iteration,
-        )
+        output_name = "land_surface_water__runoff_depth"
+        self.sim_q = np.empty(len(self.precip))
 
-    def return_sim_data(self):
-        if self.eval_variable == "Flow":
-            sim = self.cfe_instance.cfe_output_data["Flow"]
-        elif self.eval_variable == "Soil Moisture Content":
-            sim = (
-                self.cfe_instance.cfe_output_data["SM storage"]
-                / self.cfe_instance.soil_params["D"]
-            )
-        return sim
+        for t, (precip_t, pet_t) in enumerate(zip(self.precip, self.pet)):
+            
+            self.cfe_instance.set_value('atmosphere_water__time_integral_of_precipitation_mass_flux', precip_t)
+            self.cfe_instance.set_value("water_potential_evaporation_flux", pet_t)
+            
+            self.cfe_instance.update()
+            self.sim_q[t] = self.cfe_instance.get_value(output_name)
+        self.cfe_instance.finalize(print_mass_balance=False)
 
     def return_runoff(self):
-        sim = self.return_sim_runoff()
-        obs = self.return_obs_runoff()
+        sim = self.sim_q
+        obs = self.obs_q
 
         if obs.index[0] != sim.index[0]:
             warnings.warn(

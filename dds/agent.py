@@ -44,8 +44,9 @@ class Spotpy_Agent:
         self.config = config
         self.nrun = int(self.config["DDS"]["N"])
         self.out_dir = create_output_folder(
-            config["PATHS"]["homedir"], self.config["DATA"]["site"]
+            config["PATHS"]["homedir"], "result"
         )
+        self.basin_id = config["DATA"]["basin_id"]
 
         # Setting manual seed for reproducibility
         self.seed = 0
@@ -82,19 +83,13 @@ class Spotpy_Agent:
                 "parsatdk",
                 "parslop",
                 "parsmcmax",
-                "parwltsmc",
                 "parmax_gw_storage",
-                "parsatpsi",
                 "parCgw",
                 "parexpon",
                 "parK_nash",
-                "parrefkdt",
-                "partrigger_z_fact",
-                "paralpha_fc",
                 "parK_lf",
-                "parnum_nash_storage",
             ]
-        ].to_csv(os.path.join(self.out_dir, "DDS_allresults.csv"))
+        ].to_csv(os.path.join(self.out_dir, f"{self.basin_id}_allruns.csv"))
 
     def finalize(self):
         self.get_the_best_run(self.results)
@@ -125,22 +120,12 @@ class Spotpy_Agent:
             "best objective values": [bestobjf],
         }
 
-        with open(os.path.join(self.out_dir, "DDS_bestrun_params.json"), "w") as f:
+        with open(os.path.join(self.out_dir,f"{self.basin_id}_bestparams.csv"), "w") as f:
             json.dump(best_run, f, indent=4)
-
-        # Open the CSV file in write mode
-        with open(
-            os.path.join(self.out_dir, "DDS_bestrun_Q.csv"), mode="w", newline=""
-        ) as csv_file:
-            # Create a CSV writer object
-            csv_writer = csv.writer(csv_file)
-
-            # Write the tuple to the CSV file
-            csv_writer.writerow(best_model_run[0])
 
     def remove_temp_files(self):
         directory = os.path.join(
-            os.path.dirname(self.config["PATHS"]["cfe_config"]),
+            os.path.dirname(self.config["PATHS"]["homedir"]),
             "temporary_parameter_files_for_calibration",
         )
         shutil.rmtree(directory)
@@ -175,8 +160,7 @@ class Spotpy_setup:
 
         try:
             self.model.run()
-            self.sim_results = self.model.return_sim_data()
-            return self.sim_results.values
+            return self.model.sim_q
 
         except Exception as e:
             print(f"Error in simulation: {e}")
@@ -188,14 +172,13 @@ class Spotpy_setup:
         for item in vector_:
             vector[item[1]] = item[0]
         self.model = CFEmodel(config=self.config, vector=vector)
-        self.obs_data = self.model.return_obs_data()
-        return self.obs_data.values
+        return self.model.obs_q
 
     def objectivefunction(self, simulation, evaluation):
         if np.isnan(simulation.all()):
             self.obj_function = np.nan
         else:
-            if self.config["spotpy"]["like_measure"] == "NashSutcliffe":
+            if self.config["spotpy"]["like_measure"] == "NSE":
                 self.obj_function = spotpy.objectivefunctions.nashsutcliffe(
                     evaluation[~np.isnan(evaluation)], simulation[~np.isnan(evaluation)]
                 )
@@ -203,4 +186,7 @@ class Spotpy_setup:
                 self.obj_function = spotpy.objectivefunctions.kge(
                     evaluation[~np.isnan(evaluation)], simulation[~np.isnan(evaluation)]
                 )
+            else:
+                print("Specify like_meaure")
+        
         return self.obj_function

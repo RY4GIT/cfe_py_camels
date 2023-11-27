@@ -21,7 +21,7 @@ def main():
     start = time.perf_counter()
 
     config = configparser.ConfigParser()
-    config.read("1_pre_calibration/config.ini")
+    config.read("dds/config.ini")
 
     print(f"### Start {config['spotpy']['method']} calibration ###")
     spotpy_agent = Spotpy_Agent(config=config)
