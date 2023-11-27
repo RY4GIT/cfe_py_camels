@@ -92,7 +92,7 @@ class BMI_CFE(Bmi):
     # __________________________________________________________________
     # __________________________________________________________________
     # BMI: Model Control Function
-    def initialize(self, current_time_step=0, refkdt=None, satdk=None):
+    def initialize(self, current_time_step=0, Cgw=None, satdk=None):
         self.current_time_step = current_time_step
 
         # ________________________________________________
@@ -125,7 +125,7 @@ class BMI_CFE(Bmi):
 
         # ________________________________________________________ #
         # Overwrite with synthetic params                      #
-        self.refkdt = refkdt
+        self.Cgw = Cgw
         self.soil_params["satdk"] = satdk
 
         # ________________________________________________
@@ -262,7 +262,7 @@ class BMI_CFE(Bmi):
             "coeff_secondary": 0.0,
             "exponent_secondary": 1.0,
         }
-        self.gw_reservoir["storage_m"] = self.gw_reservoir["storage_max_m"] * 0.01
+        self.gw_reservoir["storage_m"] = self.gw_reservoir["storage_max_m"] * 0.5
         self.volstart += self.gw_reservoir["storage_m"]
         self.vol_in_gw_start = self.gw_reservoir["storage_m"]
 
@@ -293,7 +293,8 @@ class BMI_CFE(Bmi):
 
         # ________________________________________________
         # Nash cascade
-        self.K_nash = 0.03  # Default value, but should be set in configuration file
+        # self.K_nash = 0.03  # Default value
+        # Set in configuration file
 
         # ----------- The output is area normalized, this is needed to un-normalize it
         #                         mm->m                             km2 -> m2          hour->s
@@ -399,7 +400,7 @@ class BMI_CFE(Bmi):
 
         # Groundwater parameters
         self.max_gw_storage = data_loaded["max_gw_storage"]
-        self.Cgw = data_loaded["Cgw"]
+        # self.Cgw = data_loaded["Cgw"]
         self.expon = data_loaded["expon"]
 
         # Other modules
@@ -409,6 +410,7 @@ class BMI_CFE(Bmi):
 
         # Partitioning parameters
         # self.surface_partitioning_scheme = data_loaded["partition_scheme"]
+        self.refkdt = data_loaded["refkdt"]
 
         # ___________________________________________________
         # OPTIONAL CONFIGURATIONS
