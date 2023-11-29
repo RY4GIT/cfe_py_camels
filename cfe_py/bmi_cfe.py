@@ -4,7 +4,10 @@ import pandas as pd
 import sys
 import json
 import matplotlib.pyplot as plt
-import cfe
+try:
+    from cfe_py import cfe
+except:
+    import cfe
 from bmipy import Bmi
 
 
