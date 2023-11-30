@@ -76,20 +76,9 @@ class Spotpy_Agent:
         self.sampler.sample(self.nrun)
         self.results = self.sampler.getdata()
         df = pd.DataFrame(self.results)
-        df[
-            [
-                "like1",
-                "parbb",
-                "parsatdk",
-                "parslop",
-                "parsmcmax",
-                "parmax_gw_storage",
-                "parCgw",
-                "parexpon",
-                "parK_nash",
-                "parK_lf",
-            ]
-        ].to_csv(os.path.join(self.out_dir, f"{self.basin_id}_allruns.csv"))
+        param_names = ["par" + name for name in self.spotpy_setup.param_bounds.name.values]
+
+        df[param_names].to_csv(os.path.join(self.out_dir, f"{self.basin_id}_allruns.csv"))
 
     def finalize(self):
         self.get_the_best_run(self.results)
@@ -110,9 +99,9 @@ class Spotpy_Agent:
         # Get the best simulation run and objetive function
         bestindex, bestobjf = spotpy.analyser.get_maxlikeindex(results)
         best_model_run_ = results[bestindex]
-        obj_values = results["like1"]
+        # obj_values = results["like1"]
         # fields = [word for word in best_model_run.dtype.names if word.startswith("sim")]
-        best_model_run = np.array(best_model_run_)
+        # best_model_run = np.array(best_model_run_)
 
         # Save everything in a json
         best_run = {

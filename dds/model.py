@@ -19,7 +19,10 @@ import numpy as np
 
 def duplicate_file(cfg):
 
-    filename = f"cat_{cfg['DATA']['basin_id']}_bmi_config_cfe.json"
+    if cfg['DDS']['base_estimate'] == "NWM":
+        filename = f"cat_{cfg['DATA']['basin_id']}_bmi_config_cfe.json"
+    elif cfg['DDS']['base_estimate'] == "myDDS":
+        filename = f"cat_{cfg['DATA']['basin_id']}_dds_calibrated.json"
     # Determine the directory and make a path for the new file
     source_path = os.path.join(
         cfg["PATHS"]["cfe_config"],
@@ -57,17 +60,31 @@ class CFEmodel:
         with open(destination_path) as data_file:
             cfe_cfg = json.load(data_file)
 
-        cfe_cfg["soil_params"]["bb"] = vector["bb"]
-        cfe_cfg["soil_params"]["satdk"] = vector["satdk"]
-        self.satdk = vector["satdk"]
-        cfe_cfg["soil_params"]["slop"] = vector["slop"]
-        cfe_cfg["soil_params"]["smcmax"] = vector["smcmax"]
-        cfe_cfg["max_gw_storage"] = vector["max_gw_storage"]
-        cfe_cfg["Cgw"] = vector["Cgw"]
-        self.Cgw = vector["Cgw"]
-        cfe_cfg["expon"] = vector["expon"]
-        cfe_cfg["K_nash"] = vector["K_nash"]
-        cfe_cfg["K_lf"] = vector["K_lf"]
+        soil_params_keys = ["bb", "satdk", "slop", "smcmax"]
+
+        try: 
+            for key in vector.keys():
+                value = vector[key]  # Adjust this line based on how you access values in 'vector'
+
+                if key in soil_params_keys:
+                    cfe_cfg["soil_params"][key] = value
+                else:
+                    cfe_cfg[key] = value
+
+                if key in ["satdk", "Cgw"]:  # Assign to self if needed
+                    setattr(self, key, value)
+        except:
+            for key in vector.name:
+                value = getattr(vector,key)  # Adjust this line based on how you access values in 'vector'
+
+                if key in soil_params_keys:
+                    cfe_cfg["soil_params"][key] = value
+                else:
+                    cfe_cfg[key] = value
+
+                if key in ["satdk", "Cgw"]:  # Assign to self if needed
+                    setattr(self, key, value)
+
         cfe_cfg["partition_scheme"] = "Schaake"
         cfe_cfg["soil_scheme"] = "classic"
 
