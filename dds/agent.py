@@ -169,11 +169,11 @@ class Spotpy_setup:
         else:
             if self.config["spotpy"]["like_measure"] == "NSE":
                 self.obj_function = spotpy.objectivefunctions.nashsutcliffe(
-                    evaluation[~np.isnan(evaluation)], simulation[~np.isnan(evaluation)]
+                    evaluation=evaluation[~np.isnan(evaluation)], simulation=simulation[~np.isnan(evaluation)]
                 )
             elif self.config["spotpy"]["like_measure"] == "KGE":
                 self.obj_function = spotpy.objectivefunctions.kge(
-                    evaluation[~np.isnan(evaluation)], simulation[~np.isnan(evaluation)]
+                    evaluation=evaluation[~np.isnan(evaluation)], simulation=simulation[~np.isnan(evaluation)]
                 )
             else:
                 print("Specify like_meaure")
